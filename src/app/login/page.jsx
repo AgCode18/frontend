@@ -29,7 +29,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const response = await api.post("/auth/login", form);
+      const response = await api.post("/login", form);
 
       const user = response.data.user;
 
