@@ -1,14 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
-  Building2,
-  CreditCard,
-  User,
-  ShieldCheck,
+  IndianRupee,
+  Receipt,
+  Clock,
+  Package,
+  Tags,
+  ArrowUpRight,
+  RefreshCw,
 } from "lucide-react";
 
-import api from "@/lib/api";
+import api from "../../../lib/api";
+
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+};
 
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
@@ -20,18 +32,13 @@ export default function AdminDashboard() {
       setLoading(true);
       setError("");
 
-      const response = await api.get(
-        "/admin/dashboard"
-      );
+      const response = await api.get("/admin/dashboard");
 
-      setData(response.data);
+      setData(response.data?.data);
     } catch (error) {
-      console.error("Dashboard Error:", error);
+      console.error(error);
 
-      setError(
-        error.response?.data?.message ||
-          "Failed to load dashboard"
-      );
+      setError(error.response?.data?.message || "Failed to load dashboard");
     } finally {
       setLoading(false);
     }
@@ -43,266 +50,253 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100">
-        <p className="text-sm text-gray-500">
-          Loading dashboard...
-        </p>
+      <div className="flex min-h-[400px] items-center justify-center">
+        <RefreshCw className="animate-spin text-blue-600" size={28} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-100 p-6 lg:p-8">
-        <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-600">
-          {error}
-        </div>
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+        <p className="font-medium text-red-700">{error}</p>
+
+        <button
+          onClick={fetchDashboard}
+          className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
-  const business = data?.business;
-  const admin = data?.admin;
-  const subscription = data?.subscription;
+  const stats = [
+    {
+      title: "Total Sales",
+      value: formatCurrency(data?.sales?.totalSales),
+      icon: IndianRupee,
+    },
+    {
+      title: "Total Paid",
+      value: formatCurrency(data?.payments?.totalPaid),
+      icon: Receipt,
+    },
+    {
+      title: "Outstanding",
+      value: formatCurrency(data?.payments?.totalOutstanding),
+      icon: Clock,
+    },
+    {
+      title: "Products",
+      value: data?.products || 0,
+      icon: Package,
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 lg:p-8">
+    <div className="space-y-6">
+      {/* Page Header */}
 
-      {/* Header */}
-      <div className="mb-8">
-        <p className="text-sm text-gray-500">
-          Welcome back
-        </p>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
 
-        <h1 className="mt-1 text-2xl font-bold text-gray-900">
-          {admin?.name || "Admin"}
-        </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Overview of your business
+          </p>
+        </div>
 
-        <p className="mt-1 text-sm text-gray-500">
-          Manage your business from one place.
-        </p>
+        <button
+          onClick={fetchDashboard}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+        >
+          <RefreshCw size={16} />
+          Refresh
+        </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
-        <StatCard
-          title="Business"
-          value={business?.name || "-"}
-          icon={Building2}
-        />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
 
-        <StatCard
-          title="Plan"
-          value={
-            subscription?.plan?.name || "-"
-          }
-          icon={CreditCard}
-        />
+          return (
+            <div
+              key={stat.title}
+              className="rounded-xl border bg-white p-5 shadow-sm"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">{stat.title}</p>
 
-        <StatCard
-          title="Subscription"
-          value={
-            subscription?.status || "-"
-          }
-          icon={ShieldCheck}
-        />
+                  <p className="mt-2 text-2xl font-bold text-slate-900">
+                    {stat.value}
+                  </p>
+                </div>
 
-        <StatCard
-          title="Admin"
-          value={admin?.name || "-"}
-          icon={User}
-        />
-
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <Icon size={21} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Business Information */}
-      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Invoice Overview */}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-slate-900">Invoice Overview</h2>
 
-          <h2 className="text-lg font-semibold text-gray-900">
-            Business Information
-          </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Current invoice status
+              </p>
+            </div>
 
-          <div className="mt-5 space-y-4">
+            <Link
+              href="/admin/invoices"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
+              View all
+            </Link>
+          </div>
 
-            <InfoRow
-              label="Business Name"
-              value={business?.name}
-            />
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            <div className="rounded-lg bg-green-50 p-4">
+              <p className="text-xs text-green-600">Paid</p>
 
-            <InfoRow
-              label="Owner"
-              value={business?.ownerName}
-            />
+              <p className="mt-1 text-xl font-bold text-green-700">
+                {data?.invoices?.paid || 0}
+              </p>
+            </div>
 
-            <InfoRow
-              label="Email"
-              value={business?.email}
-            />
+            <div className="rounded-lg bg-yellow-50 p-4">
+              <p className="text-xs text-yellow-600">Partial</p>
 
-            <InfoRow
-              label="Phone"
-              value={business?.phone}
-            />
+              <p className="mt-1 text-xl font-bold text-yellow-700">
+                {data?.invoices?.partiallyPaid || 0}
+              </p>
+            </div>
 
-            <InfoRow
-              label="GST Number"
-              value={
-                business?.gstNumber || "-"
-              }
-            />
+            <div className="rounded-lg bg-red-50 p-4">
+              <p className="text-xs text-red-600">Pending</p>
 
-            <InfoRow
-              label="PAN Number"
-              value={
-                business?.panNumber || "-"
-              }
-            />
-
-            <InfoRow
-              label="Address"
-              value={
-                [
-                  business?.address,
-                  business?.city,
-                  business?.state,
-                  business?.pincode,
-                ]
-                  .filter(Boolean)
-                  .join(", ") || "-"
-              }
-            />
-
+              <p className="mt-1 text-xl font-bold text-red-700">
+                {data?.invoices?.pending || 0}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Subscription */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        {/* Business Stats */}
 
-          <h2 className="text-lg font-semibold text-gray-900">
-            Subscription
-          </h2>
+        <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <h2 className="font-semibold text-slate-900">Business Overview</h2>
 
-          <div className="mt-5 space-y-4">
+          <div className="mt-6 space-y-4">
+            <div className="flex items-center justify-between border-b pb-4">
+              <div className="flex items-center gap-3">
+                <Package size={19} className="text-slate-500" />
 
-            <InfoRow
-              label="Plan"
-              value={
-                subscription?.plan?.name ||
-                "-"
-              }
-            />
+                <span className="text-sm text-slate-600">Products</span>
+              </div>
 
-            <InfoRow
-              label="Price"
-              value={
-                subscription?.plan?.price
-                  ? `₹${Number(
-                      subscription.plan.price
-                    ).toLocaleString("en-IN")}`
-                  : "-"
-              }
-            />
+              <span className="font-semibold">{data?.products || 0}</span>
+            </div>
 
-            <InfoRow
-              label="Billing Cycle"
-              value={
-                subscription?.plan
-                  ?.billingCycle || "-"
-              }
-            />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Tags size={19} className="text-slate-500" />
 
-            <InfoRow
-              label="Status"
-              value={
-                subscription?.status || "-"
-              }
-            />
+                <span className="text-sm text-slate-600">Categories</span>
+              </div>
 
-            <InfoRow
-              label="Start Date"
-              value={
-                subscription?.startDate
-                  ? new Date(
-                      subscription.startDate
-                    ).toLocaleDateString("en-IN")
-                  : "-"
-              }
-            />
-
-            <InfoRow
-              label="End Date"
-              value={
-                subscription?.endDate
-                  ? new Date(
-                      subscription.endDate
-                    ).toLocaleDateString("en-IN")
-                  : "No expiry"
-              }
-            />
-
-            <InfoRow
-              label="Auto Renewal"
-              value={
-                subscription?.autoRenew
-                  ? "Enabled"
-                  : "Disabled"
-              }
-            />
-
+              <span className="font-semibold">{data?.categories || 0}</span>
+            </div>
           </div>
         </div>
-
       </div>
-    </div>
-  );
-}
 
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-}) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between">
+      {/* Quick Actions */}
 
-        <div className="min-w-0">
-          <p className="text-sm text-gray-500">
-            {title}
-          </p>
+      <div>
+        <h2 className="mb-4 font-semibold text-slate-900">Quick Actions</h2>
 
-          <p className="mt-2 truncate text-xl font-bold text-gray-900">
-            {value}
-          </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Link
+            href="/admin/invoices/create"
+            className="group rounded-xl border bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+          >
+            <Receipt className="text-blue-600" />
+
+            <p className="mt-4 font-semibold">Create Invoice</p>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Create a new customer invoice
+            </p>
+
+            <ArrowUpRight
+              size={18}
+              className="mt-4 text-slate-400 transition group-hover:text-blue-600"
+            />
+          </Link>
+
+          <Link
+            href="/admin/products"
+            className="group rounded-xl border bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+          >
+            <Package className="text-blue-600" />
+
+            <p className="mt-4 font-semibold">Products</p>
+
+            <p className="mt-1 text-sm text-slate-500">Manage inventory</p>
+
+            <ArrowUpRight
+              size={18}
+              className="mt-4 text-slate-400 transition group-hover:text-blue-600"
+            />
+          </Link>
+
+          <Link
+            href="/admin/reports"
+            className="group rounded-xl border bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+          >
+            <IndianRupee className="text-blue-600" />
+
+            <p className="mt-4 font-semibold">Reports</p>
+
+            <p className="mt-1 text-sm text-slate-500">View business reports</p>
+
+            <ArrowUpRight
+              size={18}
+              className="mt-4 text-slate-400 transition group-hover:text-blue-600"
+            />
+          </Link>
+
+          <Link
+            href="/admin/business-profile"
+            className="group rounded-xl border bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+          >
+            <Tags className="text-blue-600" />
+
+            <p className="mt-4 font-semibold">Business Profile</p>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Update business details
+            </p>
+
+            <ArrowUpRight
+              size={18}
+              className="mt-4 text-slate-400 transition group-hover:text-blue-600"
+            />
+          </Link>
         </div>
-
-        <div className="rounded-lg bg-blue-50 p-3">
-          <Icon
-            size={21}
-            className="text-blue-600"
-          />
-        </div>
-
       </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value }) {
-  return (
-    <div className="flex items-start justify-between gap-5 border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-
-      <span className="text-sm text-gray-500">
-        {label}
-      </span>
-
-      <span className="text-right text-sm font-medium text-gray-900">
-        {value || "-"}
-      </span>
-
     </div>
   );
 }
